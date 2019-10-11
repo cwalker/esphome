@@ -223,7 +223,7 @@ def perform_ota(sock, password, file_handle, filename):
     # show the actual progress
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
     # Set higher timeout during upload
-    sock.settimeout(40.0)
+    sock.settimeout(20.0)
 
     offset = 0
     progress = ProgressBar()
@@ -274,7 +274,7 @@ def run_ota_impl_(remote_host, remote_port, password, filename):
         _LOGGER.info(" -> %s", ip)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(30.0)
+    sock.settimeout(10.0)
     try:
         sock.connect((ip, remote_port))
     except socket.error as err:
