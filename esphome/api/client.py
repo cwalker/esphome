@@ -187,7 +187,7 @@ class APIClient(threading.Thread):
 
         _LOGGER.info("Connecting to %s:%s (%s)", self._address, self._port, ip)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.settimeout(10.0)
+        self._socket.settimeout(5.0)
         self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         try:
             self._socket.connect((ip, self._port))
@@ -275,7 +275,7 @@ class APIClient(threading.Thread):
         req += encoded
         self._write(req)
 
-    def _send_message_await_response_complex(self, send_msg, do_append, do_stop, timeout=10):
+    def _send_message_await_response_complex(self, send_msg, do_append, do_stop, timeout=5):
         event = threading.Event()
         responses = []
 
