@@ -63,15 +63,17 @@ void PZEMAC::loop() {
 
   static uint8_t send_retry = 0;
 
-  bool data_ready = this->ReceiveReady();
   // wait for data
-  delay(30);
+  delay(UPDATE_TIME);
+
+  bool data_ready = this->ReceiveReady();
   if (data_ready) {
     uint8_t buffer[26];
 
     uint8_t error = this->ReceiveBuffer(buffer, 10);
     if (error) {
         ESP_LOGD(TAG, "PzemAc response error %d", error);
+        this->flush();
     } else {
         /* reference to Sonoff-Tasmota, https://github.com/arendst/Sonoff-Tasmota/blob/development/sonoff/xnrg_05_pzem_ac.ino */
         unsigned long energy_kWhtoday;
@@ -86,33 +88,38 @@ void PZEMAC::loop() {
         energy_power_factor = (float)((buffer[19] << 8) + buffer[20]) / 100.0;                                          // 1.00
         energy = (float)((buffer[15] << 24) + (buffer[16] << 16) + (buffer[13] << 8) + buffer[14]);               // 4294967295 Wh
 
-        ESP_LOGVV(TAG, "PzemAc ReceiveReady %f %f %f %f %f %f %f", energy_voltage, energy_current, energy_active_power, energy_frequency, energy_power_factor, energy);
+        ESP_LOGD(TAG, "V=%.1f I=%.3f P=%.1f F=%.1f PF=%.2f Wh=%.0f CRC=%x calCRC=%x", 
+                       energy_voltage, energy_current, energy_active_power, energy_frequency, energy_power_factor, energy,
+                       ((buffer[24] << 8) | buffer[23]), crc_16(buffer, 23));
         if (this->voltage_sensor_ != nullptr)
           this->voltage_sensor_->publish_state(energy_voltage);
-        ESP_LOGD(TAG, "Got Voltage %.1f V", energy_voltage);
+        ESP_LOGVV(TAG, "Got Voltage %.1f V", energy_voltage);
         if (this->current_sensor_ != nullptr)
           this->current_sensor_->publish_state(energy_current);
-        ESP_LOGD(TAG, "Got Current %.2f A", energy_current);
+        ESP_LOGVV(TAG, "Got Current %.3f A", energy_current);
         if (this->power_sensor_ != nullptr)
           this->power_sensor_->publish_state(energy_active_power);
-        ESP_LOGD(TAG, "Got Power %.1f W", energy_active_power);
+        ESP_LOGVV(TAG, "Got Power %.1f W", energy_active_power);
         if (this->frequency_sensor_ != nullptr)
           this->frequency_sensor_->publish_state(energy_frequency);
-        ESP_LOGD(TAG, "Got Frequency %.1f Hz", energy_frequency);
+        ESP_LOGVV(TAG, "Got Frequency %.1f Hz", energy_frequency);
         if (this->powerfactor_sensor_ != nullptr)
           this->powerfactor_sensor_->publish_state(energy_power_factor);
-        ESP_LOGD(TAG, "Got Power Factor %.2f", energy_power_factor);
+        ESP_LOGVV(TAG, "Got Power Factor %.2f", energy_power_factor);
         if (this->energy_sensor_ != nullptr)
           this->energy_sensor_->publish_state(energy);
-        ESP_LOGD(TAG, "Got Energy %.0f Wh", energy);
-
+        ESP_LOGVV(TAG, "Got Energy %.0f Wh", energy);
+/*
         if (!energy_start || (energy < energy_start)) { energy_start = energy; }  // Init after restart and handle roll-over if any
         if (energy != energy_start) {
           energy_kWhtoday += (unsigned long)((energy - energy_start) * 100);
           energy_start = energy;
         }
-    }
+        EnergyUpdateToday();
+*/
+     }
   }
+
   if (0 == send_retry || data_ready) {
     send_retry = 5;
     delay(5);
@@ -122,7 +129,26 @@ void PZEMAC::loop() {
   }
 }
 
-void PZEMAC::update() { this->Send(PZEM_AC_DEVICE_ADDRESS, 0x04, 0, 10); }
+void PZEMAC::update() { this->Send(PZEM_AC_DEVICE_ADDRESS, CMD_RIR, 0, 10); }
+
+bool PZEMAC::resetEnergy() { 
+  uint8_t buffer[] = {0x00, CMD_REST, 0x00, 0x00};
+  uint8_t reply[5];
+  buffer[0] = PZEM_AC_DEVICE_ADDRESS;
+
+  uint16_t crc = crc_16(buffer, 2);
+  buffer[2] = (uint8_t)(crc);
+  buffer[3] = (uint8_t)(crc >> 8);
+  this->write_array(buffer, 4);
+
+  uint16_t length = ReceiveBuffer(reply, 5);
+
+  if(length == 0 || length == 5){
+    return false;
+  }
+
+  return true;
+}
 
 void PZEMAC::Send(uint8_t device_address, uint8_t function_code, uint16_t start_address, uint16_t register_count)
 {
@@ -142,6 +168,7 @@ void PZEMAC::Send(uint8_t device_address, uint8_t function_code, uint16_t start_
 
   this->flush();
   this->write_array(frame, sizeof(frame));
+  this->flush();
 }
 
 }  // namespace pzemac
