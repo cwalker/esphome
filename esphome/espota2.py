@@ -274,7 +274,7 @@ def run_ota_impl_(remote_host, remote_port, password, filename):
         _LOGGER.info(" -> %s", ip)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(20.0)
+    sock.settimeout(30.0)
     try:
         sock.connect((ip, remote_port))
     except socket.error as err:
