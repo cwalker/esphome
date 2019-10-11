@@ -438,7 +438,7 @@ class Engine(threading.Thread):
         self.daemon = True
         self.zc = zc
         self.readers = {}
-        self.timeout = 10
+        self.timeout = 5
         self.condition = threading.Condition()
         self.start()
 
