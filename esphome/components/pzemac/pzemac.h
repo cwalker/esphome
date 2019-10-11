@@ -7,6 +7,12 @@
 namespace esphome {
 namespace pzemac {
 #define PZEM_AC_DEVICE_ADDRESS  0x01  // PZEM default address
+#define CMD_RHR         0x03
+#define CMD_RIR         0X04
+#define CMD_WSR         0x06
+#define CMD_CAL         0x41
+#define CMD_REST        0x42
+#define UPDATE_TIME    80
 
 class PZEMAC : public PollingComponent, public uart::UARTDevice {
  public:
@@ -30,6 +36,7 @@ class PZEMAC : public PollingComponent, public uart::UARTDevice {
   sensor::Sensor *energy_sensor_;
 
   void Send(uint8_t device_address, uint8_t function_code, uint16_t start_address, uint16_t register_count);
+  bool resetEnergy();
   bool ReceiveReady();
   uint8_t ReceiveBuffer(uint8_t *buffer, uint8_t register_count);
 
